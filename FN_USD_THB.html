@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USD/THB Quarterly Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon@1.3.0/dist/chartjs-adapter-luxon.umd.min.js"></script>
+   <style>
+    body { font-family: 'Inter', sans-serif; }
+    @media print {
+        body { background-image: none !important; background-color: white !important; color: black !important; }
+        main { box-shadow: none !important; border: none !important; overflow: visible !important; }
+        .no-print { display: none !important; }
+        h1, h2, h3, p, li { color: black !important; }
+        section, .p-4 { background-color: transparent !important; border-color: #ccc !important; box-shadow: none !important; }
+    }
+    /* --- Microchip Tiled Watermark --- */
+    body {
+        background-image: url("data:image/svg+xml;utf8,<svg width='400' height='200' xmlns='http://www.w3.org/2000/svg'><text x='50%' y='50%' text-anchor='middle' dominant-baseline='middle' font-size='36' font-family='Inter,sans-serif' font-weight='bold' fill='rgba(220,38,38,0.10)' transform='rotate(-20 200 100)'>Microchip</text></svg>");
+        background-repeat: repeat;
+        background-position: 0 0;
+        background-size: 400px 200px;
+    }
+    @media (prefers-color-scheme: dark) {
+        body {
+            background-image: url("data:image/svg+xml;utf8,<svg width='400' height='200' xmlns='http://www.w3.org/2000/svg'><text x='50%' y='50%' text-anchor='middle' dominant-baseline='middle' font-size='36' font-family='Inter,sans-serif' font-weight='bold' fill='rgba(239,68,68,0.13)' transform='rotate(-20 200 100)'>Microchip</text></svg>");
+        }
+    }
+    @media print {
+        body {
+            background-image: none !important;
+        }
+    }
+    </style>
+
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-gray-900 dark:text-gray-100 min-h-screen flex items-center justify-center p-4">
+    <div class="w-full">
+        <main id="analysis-content" class="w-full max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+            <div class="p-8 border-b border-gray-200 dark:border-gray-700 relative">
+                <h1 class="text-4xl font-extrabold text-center text-indigo-600 dark:text-indigo-400 mb-2">USD/THB Business Summary</h1>
+                <p class="text-center text-sm text-gray-500 dark:text-gray-400">Microchip 2025</p>
+                <p id="last-updated" class="text-center text-sm text-gray-400 dark:text-gray-500 mt-2"></p>
+                <p id="next-refresh" class="text-center text-xs text-gray-400 dark:text-gray-500 mt-1"></p>
+                <div class="no-print absolute top-8 right-4 flex flex-col items-end space-y-2">
+                    <button id="refresh-button" class="px-4 py-2 text-sm font-medium text-white bg-green-600 dark:bg-green-500 rounded-full shadow-md hover:bg-green-700 dark:hover:bg-green-600 transition-colors">
+                        Refresh
+                    </button>
+                    <button id="export-pdf-button" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 dark:bg-indigo-500 rounded-full shadow-md hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors">
+                        Export to PDF
+                    </button>
+                    <button id="cheatsheet-btn" class="px-4 py-2 text-sm font-medium text-white bg-yellow-600 dark:bg-yellow-500 rounded-full shadow-md hover:bg-yellow-700 dark:hover:bg-yellow-600 transition-colors">
+                        THB Factors Cheat Sheet
+                    </button>
+                    <button id="readme-btn" class="px-4 py-2 text-sm font-medium text-white bg-gray-600 dark:bg-gray-500 rounded-full shadow-md hover:bg-gray-700 dark:hover:bg-gray-600 transition-colors">
+                        README
+                    </button>
+                </div>
+            </div>
+            <div class="text-center mt-2 p-2">
+                <span id="theme-status" class="text-xs font-medium rounded-full px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200"></span>
+            </div>
+            <div class="p-8 space-y-8">
+                <section class="rounded-xl bg-gray-100 dark:bg-gray-700 p-6 shadow-inner">
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4 text-center">Summarize Forecast Analysis</h2>
+                    <div class="space-y-6 text-gray-700 dark:text-gray-300">
+                        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold text-lg text-indigo-600 dark:text-indigo-400">Business & Local News Headlines</h3>
+                            <div id="overall-analysis" class="mt-1"></div>
+                        </div>
+                        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold text-lg text-indigo-600 dark:text-indigo-400">UOB Thai's View</h3>
+                            <p class="mt-1">
+                                [FX Market Outlook - 26 September 2025<br>
+                                US equities ended in the negative territory as questions over the state of the artificial intelligence trade lingered. The Dow Jones Industrial
+				Average shed 173.96 points, or 0.38%, to finish at 45,947.32. The S&P 500 closed down 0.50% at 6,604.72. The Nasdaq Composite
+				settled 0.50% lower at 22,384.70. US Treasuries were mostly lower after new economic data showed the US economy remains solid. The
+				10-year US Treasury yield traded more than 2 bps higher at 4.17%. The 2-year Treasury yield was higher by more than 6 bps at 3.66%.
+				Meanwhile, the 30-year Treasury bond yield was down less than 1 bp at 4.74%. <br><br>
+				The US dollar appreciated against the major currencies for the second straight session on Thu, as the strong batch of US data suggested
+				little sign if any of a US recession. The US Dollar index (DXY) ended up by 0.69% to 98.553 (from the previous session’s close of 97.873).
+				EUR/USD ended the NY session closing near the intraday low at 1.1666 (from 1.1738), a 0.61% depreciation while GBP also weakened
+				against the USD, down by 0.76% to close at 1.3345 against the dollar (from 1.3447). USD/JPY ended the day near the intraday high at
+				149.80 (from the previous session’s close of 148.90). AUD/USD closed 0.65% lower at 0.6540 (from 0.6583 in previous session), while
+				NZD fared the worst among the G10 FX as the NZD/USD closed lower by -0.95% at 0.5767 (from 0.5815). <br><br>
+				Most Asian currencies were lower against the US dollar on Thu. Onshore USD/CNY rose from 7.1250 to 7.1330 as the offshore USD/CNH
+				firmed up from 7.13 to 7.1440. USD/KRW pushed back up above 1,400 to 1,410. USD/TWD rallied as well, rising strongly from 30.30 to
+				30.43. Elsewhere, USD/MYR opened with a pop from 4.21 to 4.22, but closed back down unchanged at 4.2120. USD/IDR gapped higher
+				from 16,600 to 16,750. However, USD/THB inched higher from 32.0 to 32.12. USD/SGD pushed back up above 1.29 as well, rising to as
+				high as 1.2940.<br><br>
+				It is looking relatively quiet in Asia today. Meanwhile, the key US data tonight will be the Aug PCE Deflator (Bloomberg est 0.3% m/m,
+				2.7% y/y from 0.2% m/m, 2.6% y/y in Jul), and core PCE (Bloomberg est 0.2% m/m, 2.9% y/y from 0.3% m/m, 2.9% y/y in Jul). The rest
+				of the US data includes Aug personal income (est 0.3% m/m from 0.4% in Jul) and spending (est 0.5% m/m same as Jul) and the final
+				print for the University of Michigan consumer sentiment index for Sep (est 55.4 unchanged from prelim est, from 58.2 in Aug).]
+                            </p>
+                        </div>
+                        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold text-lg text-indigo-600 dark:text-indigo-400">Bangkok Bank's View</h3>
+                            <p class="mt-1">
+                                [FX Market Outlook- 26 September 2025<br>
+				  The baht opened at 32.21/22 THB/USD, depreciating from the previous closing level of 32.12/13 THB/USD, driven by a decline in gold prices and stronger dollar as U.S. economy expanded at an annual rate of 3.8% in Q2, beating both the earlier estimate and market forecast of 3.3%.<br>
+				  According to President Trump, U.S. will impose steep tariffs—100% on branded pharmaceuticals, 50% on kitchen and bathroom fixtures, and 25% on trucks. The euro opened at 1.1673/74 USD/EUR, depreciating from the previous closing level of 1.1744/47 USD/EUR as strong U.S. economic indicators continued to pressure the currency.<br>
+		                  Although Germany’s consumer sentiment showed a slight improvement, it remained in negative territory and provided little support to the euro. The yen opened at 149.78/79 JPY/USD depreciating from the previous closing level of 148.79/80 JPY/USD.<br>
+				  The Japanese yen remains under pressure due to strong U.S. economic data and expectations that the Federal Reserve may delay rate cuts. Meanwhile, Japan’s economic outlook and cautious Bank of Japan policy continue to weigh on the currency as core CPI rose to 2.5%. At 10.30A.M., the Thai baht was trading at 32.21/22 THB/USD.]
+                            </p>
+                        </div>
+                        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold text-lg text-indigo-600 dark:text-indigo-400">Kbank's View</h3>
+                            <p class="mt-1">
+                                [Financial Market: 22 Sep 2025<br>
+                                The SET hit its highest level in 7 and a half months before declining towards the end of the week. <br>
+        			The SET surged early in the week, supported by optimism surrounding the formation of a new government. Additionally, the market was further boosted from news reports about the agreement reached between the US and China regarding the Chinese short video platform (which helped ease concerns over U.S.-China trade tensions), as well as expectations of a policy rate cut by the Fed midweek. These positive factors spurred buying across various sectors, led by technology, finance, and retail, pushing the SET to record a 7.5-month high of 1,312.74 points during the week. <br>
+        			However, after having responded to the said positive factors, the SET moved within a narrow range around the middle of the week before falling below the 1,300-point level towards the end of the week. This decline was driven by profit-taking from foreign investors following the Fed meeting results, which aligned with market expectations. Moreover, the Fed signaled a cautious approach towards future rate cuts. <br>
+				• On Friday, September 19 2025, the SET closed at 1,292.72 points, down 0.07% over-week. The average daily trading value was THB44,748.98 million, down 2.64% over-week. The mai closed at 255.47 points, up 0.34% over-week. <br>
+				• September 22-26, 2025, KSecurities expects the SET to have support at 1,275 and 1,250 points, but resistance at 1,300 and 1,315 points, respectively. KResearch advises investors to watch key factors, including Thailand’s August Exports, Fed officials’ remarks, and foreign fund flows. The US economic data that warrant close monitoring include September Manufacturing and Services PMI (Flash), August Durable Goods Orders, Existing Home Sales, Personal Income and Outlays, PCE/Core PCE Price Index, GDP report for 2Q-2025, plus Weekly Jobless Claims. Close attention must also be paid to September Manufacturing and Service PMI (Flash) of Eurozone, UK and Japan.]
+                            </p>
+                        </div>
+                    </div>
+                </section>
+                <section class="rounded-xl bg-gray-100 dark:bg-gray-700 p-6 shadow-inner">
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4 text-center">USD/THB Exchange Rate (2025)</h2>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md">
+                        <canvas id="rateChart" style="height:400px;width:100%;"></canvas>
+                    </div>
+                </section>
+                <section class="rounded-xl bg-gray-100 dark:bg-gray-700 p-6 shadow-inner">
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4 text-center">Intraday Changes (15-min Intervals)</h2>
+                    <p id="hourly-last-updated" class="text-center text-sm text-gray-400 dark:text-gray-500 mt-2 mb-4"></p>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md">
+                        <canvas id="rateChart15Min" style="height:400px;width:100%;"></canvas>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+    <!-- Cheat Sheet Modal -->
+    <div id="cheatsheet-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+      <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-lg shadow-lg relative">
+        <button id="close-cheatsheet" class="absolute top-2 right-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl">&times;</button>
+        <h2 class="text-xl font-bold text-center mb-4 text-indigo-600 dark:text-indigo-400">THB Factors Cheat Sheet</h2>
+        <div id="cheatsheet-content-en">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <h3 class="font-semibold text-green-600 dark:text-green-400 mb-2">Appreciation Factors</h3>
+              <ul class="list-disc list-inside text-gray-700 dark:text-gray-200">
+                <li>Strong Thai economic growth</li>
+                <li>High tourism inflows</li>
+                <li>Rising exports</li>
+                <li>Foreign investment inflows</li>
+                <li>US Fed rate cuts / USD weakness</li>
+                <li>Political stability in Thailand</li>
+              </ul>
+            </div>
+            <div>
+              <h3 class="font-semibold text-red-600 dark:text-red-400 mb-2">Depreciation Factors</h3>
+              <ul class="list-disc list-inside text-gray-700 dark:text-gray-200">
+                <li>Weak Thai economic data</li>
+                <li>Falling tourism or exports</li>
+                <li>Capital outflows</li>
+                <li>US Fed rate hikes / USD strength</li>
+                <li>Political/geopolitical risk</li>
+                <li>High Thai household debt</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div id="cheatsheet-content-th" class="hidden">
+          <div class="grid grid-cols-2 gap-4">
+            <div>
+              <h3 class="font-semibold text-green-600 dark:text-green-400 mb-2">ปัจจัยที่ทำให้เงินบาทแข็งค่า</h3>
+              <ul class="list-disc list-inside text-gray-700 dark:text-gray-200">
+                <li>เศรษฐกิจไทยเติบโตแข็งแกร่ง</li>
+                <li>รายได้จากการท่องเที่ยวสูง</li>
+                <li>การส่งออกขยายตัว</li>
+                <li>เงินลงทุนจากต่างประเทศไหลเข้า</li>
+                <li>เฟดสหรัฐลดดอกเบี้ย / ดอลลาร์อ่อนค่า</li>
+                <li>เสถียรภาพทางการเมืองในไทย</li>
+              </ul>
+            </div>
+            <div>
+              <h3 class="font-semibold text-red-600 dark:text-red-400 mb-2">ปัจจัยที่ทำให้เงินบาทอ่อนค่า</h3>
+              <ul class="list-disc list-inside text-gray-700 dark:text-gray-200">
+                <li>ข้อมูลเศรษฐกิจไทยอ่อนแอ</li>
+                <li>รายได้จากการท่องเที่ยวหรือส่งออกลดลง</li>
+                <li>เงินทุนไหลออก</li>
+                <li>เฟดสหรัฐขึ้นดอกเบี้ย / ดอลลาร์แข็งค่า</li>
+                <li>ความเสี่ยงทางการเมือง/ภูมิรัฐศาสตร์</li>
+                <li>หนี้ครัวเรือนไทยสูง</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="flex justify-center mt-6">
+          <button id="toggle-thai-btn" class="px-4 py-2 text-sm font-medium text-white bg-blue-600 dark:bg-blue-500 rounded-full shadow-md hover:bg-blue-700 dark:hover:bg-blue-600 transition-colors">
+            Show in Thai
+          </button>
+        </div>
+        <div class="flex justify-center mt-2">
+          <button id="cheatsheet-export-btn" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 dark:bg-indigo-500 rounded-full shadow-md hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors">
+            Export Cheat Sheet to PDF
+          </button>
+        </div>
+      </div>
+    </div>
+    <!-- README Modal -->
+    <div id="readme-modal" class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 hidden">
+      <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-2xl shadow-lg relative">
+        <button id="close-readme" class="absolute top-2 right-2 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-2xl">&times;</button>
+        <h2 class="text-xl font-bold text-center mb-4 text-indigo-600 dark:text-indigo-400">README</h2>
+        <div class="prose dark:prose-invert max-w-none text-sm" style="max-height:60vh;overflow:auto;">
+          <h3>USD/THB Forecast Analysis Dashboard</h3>
+          <ul>
+            <li><b>Refresh</b>: Updates the charts with the latest simulated data.</li>
+            <li><b>Export to PDF</b>: Exports the entire dashboard to a PDF file.</li>
+            <li><b>THB Factors Cheat Sheet</b>: Shows a quick reference of factors affecting THB appreciation/depreciation, with English/Thai toggle and PDF export.</li>
+            <li><b>README</b>: Shows this help section.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+    <script>
+const Luxon = window.luxon;
+document.addEventListener('DOMContentLoaded', function() {
+    let rateChartInstance = null;
+    let rateChart15MinInstance = null;
+    let updateIntervalSeconds = 900; // 15 minutes
+    let hourlyCountdown = updateIntervalSeconds;
+    let currentDailyData = [];
+    let currentHourlyData = [];
+
+    async function fetchAnalysis() {
+    try {
+        const response = await fetch('/api/analysis');
+        const data = await response.json();
+
+        // Fill Business News Headlines (Bangkok Post + CNA only)
+        if (data["Latest news"] && document.getElementById('overall-analysis')) {
+            const container = document.getElementById('overall-analysis');
+            container.innerHTML = ""; // Clear previous
+
+            const sources = data["Latest news"].split('|').map(s => s.trim());
+            let ul = null;
+
+            sources.forEach(item => {
+                if (item.startsWith("Bangkok Post:")) {
+                    if (ul) container.appendChild(ul);
+                    const label = document.createElement('div');
+                    label.className = "font-bold mt-2";
+                    label.textContent = "Bangkok Post:";
+                    container.appendChild(label);
+                    ul = document.createElement('ul');
+                } else if (item.startsWith("CNA Business:")) {
+                    if (ul) container.appendChild(ul);
+                    const label = document.createElement('div');
+                    label.className = "font-bold mt-2";
+                    label.textContent = "CNA Business:";
+                    container.appendChild(label);
+                    ul = document.createElement('ul');
+                } else if (item.startsWith("Local news in Thai:")) {
+                    if (ul) container.appendChild(ul);
+                    const label = document.createElement('div');
+                    label.className = "font-bold mt-2";
+                    label.textContent = "Local news in Thai:";
+                    container.appendChild(label);
+                    ul = document.createElement('ul');
+                } else if (item.startsWith("Thairath:")) {
+                    // Do nothing here, handled below
+                } else if (item.length > 0) {
+                    const match = item.match(/^(.*)\((https?:\/\/[^\)]+)\)$/);
+                    const li = document.createElement('li');
+                    li.className = "ml-4 mb-1";
+                    if (match) {
+                        const title = match[1].trim();
+                        const url = match[2].trim();
+                        li.innerHTML = `<a href="${url}" target="_blank" class="text-blue-600 underline">${title}</a>`;
+                    } else {
+                        li.textContent = item;
+                    }
+                    if (ul) ul.appendChild(li);
+                }
+            });
+            if (ul) container.appendChild(ul);
+        }
+
+        // Fill Thairath News Headlines card
+        if (data["Latest news"] && document.getElementById('thairath-analysis')) {
+            const sources = data["Latest news"].split('|').map(s => s.trim());
+            const thairathSource = sources.find(item => item.startsWith("Thairath:"));
+            if (thairathSource) {
+                const container = document.getElementById('thairath-analysis');
+                container.innerHTML = ""; // Clear previous
+                const ul = document.createElement('ul');
+                const headlines = thairathSource.replace("Thairath:", "").split(" | ").map(s => s.trim());
+                headlines.forEach(item => {
+                    const match = item.match(/^(.*)\((https?:\/\/[^\)]+)\)$/);
+                    const li = document.createElement('li');
+                    li.className = "ml-4 mb-1";
+                    if (match) {
+                        const title = match[1].trim();
+                        const url = match[2].trim();
+                        li.innerHTML = `<a href="${url}" target="_blank" class="text-blue-600 underline">${title}</a>`;
+                    } else {
+                        li.textContent = item;
+                    }
+                    ul.appendChild(li);
+                });
+                container.appendChild(ul);
+            }
+        }
+    } catch (e) {
+        console.error('Error fetching analysis:', e);
+    }
+}
+
+
+    async function fetchChartData() {
+        try {
+            const response = await fetch('/api/chartdata');
+            const data = await response.json();
+            currentDailyData = data.daily.map(d => ({ x: d.date, y: d.value }));
+            currentHourlyData = data.intraday.map(d => ({
+                x: d.timestamp, // keep as number!
+                y: d.value
+            }));
+
+            refreshCharts();
+        } catch (e) {
+            console.error('Error fetching chart data:', e);
+        }
+    }
+
+    function createChart(canvasId, chartLabel, dataPoints, isHourly = false) {
+        const canvasEl = document.getElementById(canvasId);
+        const ctx = canvasEl.getContext('2d');
+        if (canvasId === 'rateChart' && rateChartInstance) rateChartInstance.destroy();
+        if (canvasId === 'rateChart15Min' && rateChart15MinInstance) rateChart15MinInstance.destroy();
+
+        const chartConfig = {
+            type: 'line',
+            data: {
+                datasets: [{
+                    label: chartLabel,
+                    data: dataPoints,
+                    borderColor: isHourly ? 'rgb(129, 140, 248)' : 'rgb(79, 70, 229)',
+                    backgroundColor: isHourly ? 'rgba(129, 140, 248, 0.1)' : 'rgba(79, 70, 229, 0.1)',
+                    fill: true,
+                    tension: 0.1
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        type: 'time',
+                        time: {
+                            unit: isHourly ? 'minute' : 'day',
+                            tooltipFormat: isHourly ? 'HH:mm' : 'MMM dd',
+                            displayFormats: isHourly ? { minute: 'HH:mm' } : { day: 'MMM dd' },
+                        },
+                        adapters: {
+                            luxon: {
+                                zone: 'Asia/Bangkok'
+                            }
+                        },
+                        ticks: {
+                            callback: function(value, index, ticks) {
+                                return Luxon.DateTime.fromMillis(value, { zone: 'Asia/Bangkok' }).toFormat(isHourly ? 'HH:mm' : 'MMM dd');
+                            }
+                        }
+                    },
+                    y: { beginAtZero: false }
+                }
+            }
+        };
+
+        const newChart = new Chart(ctx, chartConfig);
+        if (canvasId === 'rateChart') rateChartInstance = newChart;
+        if (canvasId === 'rateChart15Min') rateChart15MinInstance = newChart;
+    }
+
+    function refreshCharts() {
+        createChart('rateChart', 'Daily Closing Rate', currentDailyData, false);
+        createChart('rateChart15Min', 'Intraday Rate', currentHourlyData, true);
+
+        const now = Luxon.DateTime.now().setZone('Asia/Bangkok').toLocaleString(Luxon.DateTime.DATETIME_SHORT_WITH_SECONDS);
+        document.getElementById('last-updated').textContent = `Last Updated: ${now}`;
+        document.getElementById('hourly-last-updated').textContent = `Last Updated: ${now}`;
+        hourlyCountdown = updateIntervalSeconds;
+    }
+
+    function updateCountdown() {
+        hourlyCountdown--;
+        const minutes = Math.floor(hourlyCountdown / 60);
+        const seconds = hourlyCountdown % 60;
+        document.getElementById('next-refresh').textContent = `Next refresh in ${minutes}m ${seconds}s`;
+        if (hourlyCountdown <= 0) {
+            fetchChartData();
+            fetchAnalysis();
+            hourlyCountdown = updateIntervalSeconds;
+        }
+    }
+
+    document.getElementById('refresh-button').addEventListener('click', () => {
+        fetchChartData();
+        fetchAnalysis();
+    });
+
+    document.getElementById('export-pdf-button').addEventListener('click', () => {
+        const mainContent = document.getElementById('analysis-content');
+        html2canvas(mainContent).then(canvas => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new window.jspdf.jsPDF({
+                orientation: 'portrait',
+                unit: 'pt',
+                format: 'a4'
+            });
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const imgWidth = pageWidth;
+            const imgHeight = canvas.height * imgWidth / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            pdf.save('USD_THB_Analysis.pdf');
+        });
+    });
+
+    // Cheat Sheet Modal logic
+    let showingThai = false;
+    document.getElementById('cheatsheet-btn').addEventListener('click', () => {
+        document.getElementById('cheatsheet-modal').classList.remove('hidden');
+        document.getElementById('cheatsheet-content-en').classList.remove('hidden');
+        document.getElementById('cheatsheet-content-th').classList.add('hidden');
+        document.getElementById('toggle-thai-btn').textContent = 'Show in Thai';
+        showingThai = false;
+    });
+    document.getElementById('close-cheatsheet').addEventListener('click', () => {
+        document.getElementById('cheatsheet-modal').classList.add('hidden');
+    });
+    document.getElementById('toggle-thai-btn').addEventListener('click', () => {
+        showingThai = !showingThai;
+        if (showingThai) {
+            document.getElementById('cheatsheet-content-en').classList.add('hidden');
+            document.getElementById('cheatsheet-content-th').classList.remove('hidden');
+            document.getElementById('toggle-thai-btn').textContent = 'Show in English';
+        } else {
+            document.getElementById('cheatsheet-content-en').classList.remove('hidden');
+            document.getElementById('cheatsheet-content-th').classList.add('hidden');
+            document.getElementById('toggle-thai-btn').textContent = 'Show in Thai';
+        }
+    });
+    document.getElementById('cheatsheet-export-btn').addEventListener('click', () => {
+        const content = showingThai ? document.getElementById('cheatsheet-content-th') : document.getElementById('cheatsheet-content-en');
+        html2canvas(content).then(canvas => {
+            const imgData = canvas.toDataURL('image/png');
+            const pdf = new window.jspdf.jsPDF({
+                orientation: 'portrait',
+                unit: 'pt',
+                format: 'a4'
+            });
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const imgWidth = pageWidth;
+            const imgHeight = canvas.height * imgWidth / canvas.width;
+            pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+            pdf.save('THB_Cheat_Sheet.pdf');
+        });
+    });
+
+    // README Modal logic
+    document.getElementById('readme-btn').addEventListener('click', () => {
+        document.getElementById('readme-modal').classList.remove('hidden');
+    });
+    document.getElementById('close-readme').addEventListener('click', () => {
+        document.getElementById('readme-modal').classList.add('hidden');
+    });
+
+    fetchChartData();
+    fetchAnalysis();
+    setInterval(updateCountdown, 1000);
+});
+</script>
+</body>
+</html>
