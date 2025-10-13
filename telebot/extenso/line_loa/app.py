@@ -33,7 +33,10 @@ line_bot_api = LineBotApi(os.environ.get('LINE_ACCESS_TOKEN'))
 handler = WebhookHandler(LINE_CHANNEL_SECRET)
 
 # Database Setup (Temporary SQLite for Trial)
-DATABASE_PATH = os.environ.get('DATABASE_FILE_PATH', 'sqlite:///village.db')
+# The "sqlite:////" prefix is required by SQLAlchemy for an absolute path.
+# We use the /tmp/ directory because it is guaranteed to be writable on Render.
+default_db_path = 'sqlite:////tmp/village.db' 
+DATABASE_PATH = os.environ.get('DATABASE_FILE_PATH', default_db_path)
 engine = create_engine(DATABASE_PATH)
 Base = declarative_base()
 Session = sessionmaker(bind=engine)
@@ -226,4 +229,4 @@ def initdb_command():
     print("Database initialized with trial units (A-101/1234, B-205/5678, C-303/9012).")
 
 # --- Final Step: Commit Code to Git ---
-# After pasting, commit and push this file to trigger the second, successful Render build.#Deploy Trigger
+# After pasting, commit and push this file to trigger the second, successful Render build.
