@@ -1,0 +1,7 @@
+flask
+requests
+python-dotenv
+google-cloud-firestore
+firebase-admin
+line-bot-sdk
+gunicorn
