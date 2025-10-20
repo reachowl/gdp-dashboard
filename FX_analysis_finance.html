@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>USD/THB Quarterly Analysis</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- JsPDF and html2canvas for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Chart.js and dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/luxon@3.4.4/build/global/luxon.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-luxon"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-chart-financial@0.1.0/dist/chartjs-chart-financial.min.js"></script>
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        .background-pattern {
+            /* Tiled circuit board pattern from Base64-encoded SVG */
+            background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h1v20H0zM19 0h1v20h-1zM0 0v1h20V0zM0 19v1h20v-1z' fill='%2364748B' opacity='0.1'/%3E%3Cpath d='M5 5h10v10H5z' fill='%2364748B' opacity='0.05'/%3E%3C/svg%3E");
+        }
+
+        .dark .background-pattern {
+            background-image: url("data:image/svg+xml,%3Csvg width='20' height='20' viewBox='0 0 20 20' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 0h1v20H0zM19 0h1v20h-1zM0 0v1h20V0zM0 19v1h20v-1z' fill='%2394A3B8' opacity='0.1'/%3E%3Cpath d='M5 5h10v10H5z' fill='%2394A3B8' opacity='0.05'/%3E%3C/svg%3E");
+        }
+
+        @media print {
+            body {
+                background-image: none !important;
+                background-color: white !important;
+                color: black !important;
+            }
+            main {
+                box-shadow: none !important;
+                border: none !important;
+                overflow: visible !important;
+            }
+            .no-print {
+                display: none !important;
+            }
+            h1, h2, h3, p, li {
+                color: black !important;
+            }
+            section, .p-4 {
+                background-color: transparent !important;
+                border-color: #ccc !important;
+                box-shadow: none !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 dark:bg-slate-900 text-gray-900 dark:text-gray-100 min-h-screen flex items-center justify-center p-4 background-pattern">
+    <div class="w-full">
+        <main id="analysis-content" class="w-full max-w-4xl mx-auto bg-white dark:bg-gray-800 rounded-2xl shadow-xl overflow-hidden">
+            <!-- Header Section -->
+            <div class="p-8 border-b border-gray-200 dark:border-gray-700 relative">
+                <h1 class="text-4xl font-extrabold text-center text-indigo-600 dark:text-indigo-400 mb-2">USD/THB Forecast Analysis</h1>
+                <p class="text-center text-sm text-gray-500 dark:text-gray-400">Maintained by Microchip Thailand Finance Team</p>
+                <p id="last-updated" class="text-center text-sm text-gray-400 dark:text-gray-500 mt-2"></p>
+                <p id="next-refresh" class="text-center text-xs text-gray-400 dark:text-gray-500 mt-1"></p>
+
+                <!-- Button Container -->
+                <div class="no-print absolute top-8 right-4 flex flex-col items-end space-y-2">
+                    <!-- Theme Toggle Button -->
+                    <button id="theme-toggle" class="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700 transition-colors" aria-label="Toggle light and dark theme">
+                        <svg id="moon-icon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"></path>
+                        </svg>
+                        <svg id="sun-icon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"></path>
+                        </svg>
+                    </button>
+                    <!-- Refresh Button -->
+                    <button id="refresh-button" class="px-4 py-2 text-sm font-medium text-white bg-green-600 dark:bg-green-500 rounded-full shadow-md hover:bg-green-700 dark:hover:bg-green-600 transition-colors">
+                        Refresh
+                    </button>
+                    <!-- Export to PDF Button -->
+                    <button id="export-pdf-button" class="px-4 py-2 text-sm font-medium text-white bg-indigo-600 dark:bg-indigo-500 rounded-full shadow-md hover:bg-indigo-700 dark:hover:bg-indigo-600 transition-colors">
+                        Export to PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Theme Status Indicator -->
+            <div class="text-center mt-2 p-2">
+                <span id="theme-status" class="text-xs font-medium rounded-full px-2 py-1 bg-slate-200 dark:bg-slate-700 text-slate-700 dark:text-slate-200"></span>
+            </div>
+
+            <!-- Overall Analysis Section -->
+            <div class="p-8 space-y-8">
+                <section class="rounded-xl bg-gray-100 dark:bg-gray-700 p-6 shadow-inner">
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4 text-center">Summarize Forecast Analysis</h2>
+                    <div class="space-y-6 text-gray-700 dark:text-gray-300">
+                        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold text-lg text-indigo-600 dark:text-indigo-400">Overall Analysis</h3>
+                            <p class="mt-1">
+                                While there is a mix of views, the consensus points to **continued volatility**. The key battle is between US economic strength (a bullish sign for the USD) and a strong Thai tourism recovery (a bullish sign for the Baht). Overall, there's a slight bias towards **Baht depreciation** in the near term, but this could quickly change with new economic data.
+                            </p>
+                        </div>
+                        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold text-lg text-indigo-600 dark:text-indigo-400">Bangkok Bank's View</h3>
+                            <p class="mt-1">
+                                Bangkok Bank's analysis notes a recent **Baht appreciation** due to weaker US economic data. This is a bearish signal for the USD, and a continued dovish stance from the US Federal Reserve would support further USD **depreciation** (Baht appreciation).
+                            </p>
+                        </div>
+                        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold text-lg text-indigo-600 dark:text-indigo-400">SCB EIC's View</h3>
+                            <p class="mt-1">
+                                SCB EIC suggests the Baht will face continued pressure from US economic strength. Their forecast range indicates a bias towards a **weakening Baht** (USD appreciation), driven by robust US data and an uneven Thai recovery.
+                            </p>
+                        </div>
+                        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold text-lg text-indigo-600 dark:text-indigo-400">UOB's View</h3>
+                            <p class="mt-1">
+                                UOB expects the pair to remain in a range-trading phase. A breakout would require specific conditions:
+                                <ul class="list-disc list-inside ml-4 mt-2">
+                                    <li>**Baht Appreciation** (USD Depreciation): Requires a clear dovish shift from the US Fed.</li>
+                                    <li>**Baht Depreciation** (USD Appreciation): Possible if global risk aversion increases.</li>
+                                </ul>
+                            </p>
+                        </div>
+                        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold text-lg text-indigo-600 dark:text-indigo-400">KResearch's View</h3>
+                            <p class="mt-1">
+                                KResearch forecasts continued volatility and sees the Baht's trajectory tied to the US Fed and the speed of Thailand's economic recovery. Their Q4 forecast range of **33.50-34.50** implies a general outlook for **Baht depreciation** (USD appreciation) in the coming months.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Key Factors Section -->
+                <section class="rounded-xl bg-gray-100 dark:bg-gray-700 p-6 shadow-inner">
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4">Key Factors Influencing the Baht</h2>
+                    <ul class="space-y-4 text-gray-700 dark:text-gray-300">
+                        <li class="p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold text-lg text-indigo-600 dark:text-indigo-400">US Monetary Policy</h3>
+                            <p class="mt-1">The timing and magnitude of the US Federal Reserve's interest rate cuts are a major influence. The market is closely watching for a soft landing in the US economy, which could lead to a more predictable rate-cutting cycle. Delays or changes in the Fed's stance can cause the Baht to weaken.</p>
+                        </li>
+                        <li class="p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold text-lg text-indigo-600 dark:text-indigo-400">Thai Economic Recovery</h3>
+                            <p class="mt-1">Thailand's economic recovery is seen as gradual, with tourism being a key driver. However, slow domestic demand and high household debt levels are acting as headwinds. A slower-than-expected recovery puts pressure on the Baht.</p>
+                        </li>
+                        <li class="p-3 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold text-lg text-indigo-600 dark:text-indigo-400">Political and Geopolitical Factors</h3>
+                            <p class="mt-1">Easing political concerns within Thailand have contributed to a stronger Baht in the past, but geopolitical risks and international trade policies (such as those from the US) can create volatility.</p>
+                        </li>
+                    </ul>
+                </section>
+
+                <!-- Recent Analysis from KResearch, SCB EIC, UOB, and Bangkok Bank -->
+                <section class="rounded-xl bg-gray-100 dark:bg-gray-700 p-6 shadow-inner">
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-2">Recent Analysis from Financial Institutions</h2>
+                    <p class="text-sm text-gray-400 dark:text-gray-500 text-center mb-4">Analysis as of Mid-September 2025</p>
+                    <div class="space-y-6 text-gray-700 dark:text-gray-300">
+                        <!-- Bangkok Bank is now the first card -->
+                        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold text-lg text-indigo-600 dark:text-indigo-400">Bangkok Bank</h3>
+                            <p class="mt-1">
+                                Based on their September 12, 2025 market report, Bangkok Bank's analysis notes the Baht opened lower against the US Dollar but has appreciated over 7% year-to-date, reaching its strongest level in four years. This strength is attributed to recent weaker US economic data, which has increased expectations for a Federal Reserve rate cut. They highlight the concern among Thai exporters about this strong baht, especially in light of international trade policies. The report also mentions that the Bank of Thailand is closely monitoring the situation.
+                            </p>
+                            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                <strong>Current Quote (as of Sep 12, 2025):</strong> The USD/THB rate was trading at **31.68-31.70**.
+                            </p>
+                        </div>
+                        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold text-lg text-indigo-600 dark:text-indigo-400">KResearch</h3>
+                            <p class="mt-1">
+                                According to KResearch's mid-September outlook, the Thai economy is expected to grow at a slower pace in 2025, projected to be around 2.8% to 3.3%. This is due to a global economic slowdown impacting exports and persistent high household debt limiting domestic consumption. The Baht is expected to remain volatile, with its trajectory highly dependent on the US Federal Reserve's decisions and the speed of the global economic recovery.
+                            </p>
+                            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                <strong>Forecast:</strong> They forecast the Baht to trade in a range of **33.50-34.50** for the final quarter of 2025.
+                            </p>
+                        </div>
+                        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold text-lg text-indigo-600 dark:text-indigo-400">SCB EIC</h3>
+                            <p class="mt-1">
+                                SCB EIC's latest analysis suggests the Thai Baht will face continued pressure from US economic strength, which supports a stronger US Dollar. The pace of the Thai economic recovery, which is uneven, will also influence the currency's movement. While tourism continues to be a key pillar of support, weak exports and slower-than-expected government spending are identified as key risks. They anticipate the Baht to trade within a range, with potential for further weakening if US data remains robust.
+                            </p>
+                        </div>
+                        <div class="p-4 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
+                            <h3 class="font-semibold text-lg text-indigo-600 dark:text-indigo-400">UOB's View</h3>
+                            <p class="mt-1">
+                                UOB's September 2025 research indicates that the USD/THB pair is likely to remain in a range-trading phase in the coming quarter. The Baht's strength is primarily driven by capital inflows related to the tourism sector and a positive trade balance, but it remains susceptible to sudden shifts in market sentiment. A clear breakout below the 32.20 support level would require a more dovish stance from the US Federal Reserve than currently expected, while a breakout above 34.00 is a possibility if global risk aversion increases.
+                            </p>
+                            <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                                <strong>Forecast:</strong> UOB's forecast for Q4 2025 is for the USD/THB to remain in a **32.50-33.50** range, with a potential to test the lower end if external factors are favorable.
+                            </p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Daily Chart Section (Original) -->
+                <section class="rounded-xl bg-gray-100 dark:bg-gray-700 p-6 shadow-inner">
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4 text-center">USD/THB Exchange Rate (2025)</h2>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md">
+                        <canvas id="rateChart" class="w-full"></canvas>
+                    </div>
+                </section>
+                
+                <!-- Hourly Chart Section (New) -->
+                <section class="rounded-xl bg-gray-100 dark:bg-gray-700 p-6 shadow-inner">
+                    <h2 class="text-2xl font-bold text-gray-800 dark:text-gray-200 mb-4 text-center">Intraday Changes (15-min Intervals)</h2>
+                    <p id="hourly-last-updated" class="text-center text-sm text-gray-400 dark:text-gray-500 mt-2 mb-4"></p>
+                    <div class="no-print flex justify-center space-x-4 mb-4">
+                        <button id="line-chart-btn" class="px-4 py-2 text-sm font-medium rounded-full shadow-md transition-colors">
+                            Line Chart
+                        </button>
+                        <button id="candlestick-chart-btn" class="px-4 py-2 text-sm font-medium rounded-full shadow-md transition-colors">
+                            Candlestick Chart
+                        </button>
+                    </div>
+                    <div class="bg-white dark:bg-gray-800 rounded-lg p-4 shadow-md">
+                        <canvas id="rateChart15Min" class="w-full"></canvas>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        window.onload = function() {
+            // Use a global variable to store the chart instance
+            let rateChartInstance = null;
+            let rateChart15MinInstance = null;
+            let current15MinChartType = 'line';
+            
+            const pageRefreshInterval = 60 * 60; // 60 minutes in seconds
+            const chartRefreshInterval = 15 * 60; // 15 minutes in seconds
+            let countdown = chartRefreshInterval; // For chart refresh
+
+            const today = luxon.DateTime.now().setZone('Asia/Bangkok');
+            const yesterday = today.minus({ days: 1 });
+
+            const originalDailyData = `
+|snapshot_datetime|relative_percent_change|absolute_value|
+|-----------------|-----------------------|--------------|
+| 2025-01-01T23:58:00+00:00 | 0.000000 | 34.290000 |
+| 2025-01-06T23:58:00+00:00 | 0.962380 | 34.620000 |
+| 2025-01-11T23:58:00+00:00 | 1.204433 | 34.703000 |
+| 2025-01-16T23:58:00+00:00 | 0.723243 | 34.538000 |
+| 2025-01-21T23:58:00+00:00 | -0.918635 | 33.975000 |
+| 2025-01-26T23:58:00+00:00 | -1.799358 | 33.673000 |
+| 2025-01-31T23:58:00+00:00 | -1.487314 | 33.780000 |
+| 2025-02-05T23:58:00+00:00 | -2.158064 | 33.550000 |
+| 2025-02-10T23:58:00+00:00 | -1.017789 | 33.941000 |
+| 2025-02-15T23:58:00+00:00 | -1.682706 | 33.713000 |
+| 2025-02-20T23:58:00+00:00 | -2.187227 | 33.540000 |
+| 2025-02-25T23:58:00+00:00 | -1.557305 | 33.756000 |
+| 2025-03-03T23:58:00+00:00 | -0.793234 | 34.018000 |
+| 2025-03-08T23:58:00+00:00 | -1.630213 | 33.731000 |
+| 2025-03-13T23:58:00+00:00 | -1.778944 | 33.680000 |
+| 2025-03-18T23:58:00+00:00 | -1.924759 | 33.630000 |
+| 2025-03-23T23:58:00+00:00 | -1.204433 | 33.877000 |
+| 2025-03-28T23:58:00+00:00 | -1.116944 | 33.907000 |
+| 2025-04-02T23:58:00+00:00 | 0.145815 | 34.340000 |
+| 2025-04-07T23:58:00+00:00 | 1.195684 | 34.700000 |
+| 2025-04-12T23:58:00+00:00 | -2.370954 | 33.477000 |
+| 2025-04-17T23:58:00+00:00 | -2.878390 | 33.303000 |
+| 2025-04-25T23:58:00+00:00 | -2.303879 | 33.500000 |
+| 2025-04-30T23:58:00+00:00 | -2.537183 | 33.420000 |
+| 2025-05-05T23:58:00+00:00 | -4.024497 | 32.910000 |
+| 2025-05-11T23:58:00+00:00 | -3.645378 | 33.040000 |
+| 2025-05-16T23:58:00+00:00 | -2.828813 | 33.320000 |
+| 2025-05-21T23:58:00+00:00 | -4.636920 | 32.700000 |
+| 2025-05-27T23:58:00+00:00 | -4.636920 | 32.700000 |
+| 2025-06-02T23:58:00+00:00 | -5.220181 | 32.500000 |
+| 2025-06-07T23:58:00+00:00 | -4.491105 | 32.750000 |
+| 2025-06-12T23:58:00+00:00 | -5.686789 | 32.340000 |
+| 2025-06-18T23:58:00+00:00 | -4.759405 | 32.658000 |
+| 2025-06-23T23:58:00+00:00 | -4.391951 | 32.784000 |
+| 2025-06-28T23:58:00+00:00 | -5.132692 | 32.530000 |
+| 2025-07-03T23:58:00+00:00 | -5.424322 | 32.430000 |
+| 2025-07-08T23:58:00+00:00 | -4.899388 | 32.610000 |
+| 2025-07-13T23:58:00+00:00 | -5.599300 | 32.370000 |
+| 2025-07-18T23:58:00+00:00 | -5.599300 | 32.370000 |
+| 2025-07-23T23:58:00+00:00 | -6.240887 | 32.150000 |
+| 2025-07-28T23:58:00+00:00 | -5.307670 | 32.470000 |
+| 2025-08-02T23:58:00+00:00 | -5.365996 | 32.450000 |
+| 2025-08-07T23:58:00+00:00 | -5.850102 | 32.284000 |
+| 2025-08-12T23:58:00+00:00 | -5.540974 | 32.390000 |
+| 2025-08-18T23:58:00+00:00 | -5.191018 | 32.510000 |
+| 2025-08-24T23:58:00+00:00 | -5.628463 | 32.360000 |
+| 2025-08-29T23:58:00+00:00 | -5.920093 | 32.260000 |
+| 2025-09-03T23:58:00+00:00 | -5.890930 | 32.270000 |
+| 2025-09-08T23:58:00+00:00 | -7.611549 | 31.680000 |
+| 2025-09-12T23:58:00+00:00 | -7.438051 | 31.739492 |
+            `;
+
+            const originalHourlyData = [
+                { date: luxon.DateTime.now().minus({ minutes: 60 }).toJSDate(), value: 31.7400, ohlc: { x: luxon.DateTime.now().minus({ minutes: 60 }).toJSDate(), o: 31.7400, h: 31.7450, l: 31.7380, c: 31.7420 } },
+                { date: luxon.DateTime.now().minus({ minutes: 45 }).toJSDate(), value: 31.7350, ohlc: { x: luxon.DateTime.now().minus({ minutes: 45 }).toJSDate(), o: 31.7420, h: 31.7430, l: 31.7320, c: 31.7350 } },
+                { date: luxon.DateTime.now().minus({ minutes: 30 }).toJSDate(), value: 31.7425, ohlc: { x: luxon.DateTime.now().minus({ minutes: 30 }).toJSDate(), o: 31.7350, h: 31.7450, l: 31.7340, c: 31.7425 } },
+                { date: luxon.DateTime.now().minus({ minutes: 15 }).toJSDate(), value: 31.7380, ohlc: { x: luxon.DateTime.now().minus({ minutes: 15 }).toJSDate(), o: 31.7425, h: 31.7430, l: 31.7360, c: 31.7380 } },
+                { date: luxon.DateTime.now().toJSDate(), value: 31.7410, ohlc: { x: luxon.DateTime.now().toJSDate(), o: 31.7380, h: 31.7420, l: 31.7370, c: 31.7410 } }
+            ];
+
+            let currentDailyData = parseMarkdownTable(originalDailyData);
+            let currentHourlyData = originalHourlyData;
+
+            /**
+             * Parses the markdown table data into a JavaScript array of objects.
+             * @param {string} markdown - The markdown table as a string.
+             * @returns {Array<Object>} An array of objects with date and value properties.
+             */
+            function parseMarkdownTable(markdown) {
+                const lines = markdown.trim().split('\n');
+                const dataLines = lines.slice(2); // Skip header and separator
+                return dataLines.map(line => {
+                    const parts = line.split('|').map(p => p.trim()).filter(p => p);
+                    return {
+                        date: parts[0].split('T')[0],
+                        value: parseFloat(parts[1] || parts[2])
+                    };
+                });
+            }
+
+            /**
+             * Simulates adding a new data point to the hourly chart,
+             * generating OHLC data for the candlestick chart.
+             */
+            const addHourlyDataPoint = () => {
+                const lastDataPoint = currentHourlyData[currentHourlyData.length - 1];
+                const lastClose = lastDataPoint.value;
+                const open = lastClose + (Math.random() - 0.5) * 0.005;
+                const close = open + (Math.random() - 0.5) * 0.01;
+                const high = Math.max(open, close) + Math.random() * 0.005;
+                const low = Math.min(open, close) - Math.random() * 0.005;
+
+                const lastDate = lastDataPoint.date;
+                const newDate = new Date(lastDate.getTime() + 15 * 60 * 1000);
+
+                currentHourlyData.push({
+                    date: newDate,
+                    value: close,
+                    ohlc: {
+                        x: newDate,
+                        o: open,
+                        h: high,
+                        l: low,
+                        c: close
+                    }
+                });
+
+                // Keep the chart to a max of 20 data points for readability
+                if (currentHourlyData.length > 20) {
+                    currentHourlyData.shift();
+                }
+            };
+            
+            /**
+             * Updates a chart with new data and the current theme.
+             * @param {object} chartInstance - The Chart.js instance.
+             * @param {Array<Object>} dataPoints - The new data to plot.
+             * @param {boolean} isHourly - Flag to determine if it's the hourly chart.
+             */
+            const updateChart = (chartInstance, dataPoints, isHourly = false) => {
+                if (!chartInstance) return;
+
+                const isDarkMode = document.documentElement.classList.contains('dark');
+                const chartTextColor = isDarkMode ? 'rgb(209, 213, 219)' : 'rgb(107, 114, 128)';
+                const gridColor = isDarkMode ? 'rgba(209, 213, 219, 0.1)' : 'rgba(209, 213, 219, 0.5)';
+                const lineColor = isDarkMode ? 'rgb(129, 140, 248)' : 'rgb(79, 70, 229)';
+                const backgroundColor = isDarkMode ? 'rgba(129, 140, 248, 0.1)' : 'rgba(79, 70, 229, 0.1)';
+                const candlestickColors = {
+                    up: isDarkMode ? 'rgb(52, 211, 153)' : 'rgb(34, 197, 94)',
+                    down: isDarkMode ? 'rgb(248, 113, 113)' : 'rgb(239, 68, 68)',
+                    borderUp: isDarkMode ? 'rgb(52, 211, 153)' : 'rgb(34, 197, 94)',
+                    borderDown: isDarkMode ? 'rgb(248, 113, 113)' : 'rgb(239, 68, 68)'
+                };
+
+                let datasetData;
+                let labels;
+
+                if (isHourly) {
+                    labels = dataPoints.map(d => `${d.date.getHours()}:${String(d.date.getMinutes()).padStart(2, '0')}`);
+                    if (chartInstance.config.type === 'candlestick') {
+                        datasetData = dataPoints.map(d => d.ohlc);
+                        chartInstance.data.datasets[0].upColor = candlestickColors.up;
+                        chartInstance.data.datasets[0].downColor = candlestickColors.down;
+                    } else {
+                        datasetData = dataPoints.map(d => d.value);
+                        chartInstance.data.datasets[0].borderColor = lineColor;
+                        chartInstance.data.datasets[0].backgroundColor = backgroundColor;
+                    }
+                } else {
+                    labels = dataPoints.map(d => d.date);
+                    datasetData = dataPoints.map(d => d.value);
+                    chartInstance.data.datasets[0].borderColor = lineColor;
+                    chartInstance.data.datasets[0].backgroundColor = backgroundColor;
+                }
+
+                chartInstance.data.labels = labels;
+                chartInstance.data.datasets[0].data = datasetData;
+                chartInstance.options.scales.x.ticks.color = chartTextColor;
+                chartInstance.options.scales.y.ticks.color = chartTextColor;
+                chartInstance.options.scales.x.grid.color = gridColor;
+                chartInstance.options.scales.y.grid.color = gridColor;
+                chartInstance.options.plugins.legend.labels.color = chartTextColor;
+                
+                chartInstance.update();
+            };
+
+            /**
+             * Initializes a new chart.
+             * @param {string} canvasId - The ID of the canvas element.
+             * @param {string} chartLabel - The label for the chart.
+             * @param {Array<Object>} dataPoints - The data to plot.
+             * @param {boolean} isHourly - Flag to determine if it's the hourly chart.
+             * @param {string} chartType - 'line' or 'candlestick'.
+             * @returns {Chart} The created Chart.js instance.
+             */
+            const createChart = (canvasId, chartLabel, dataPoints, isHourly = false, chartType = 'line') => {
+                const ctx = document.getElementById(canvasId).getContext('2d');
+                
+                const isDarkMode = document.documentElement.classList.contains('dark');
+                const chartTextColor = isDarkMode ? 'rgb(209, 213, 219)' : 'rgb(107, 114, 128)';
+                const gridColor = isDarkMode ? 'rgba(209, 213, 219, 0.1)' : 'rgba(209, 213, 219, 0.5)';
+                const lineColor = isDarkMode ? 'rgb(129, 140, 248)' : 'rgb(79, 70, 229)';
+                const backgroundColor = isDarkMode ? 'rgba(129, 140, 248, 0.1)' : 'rgba(79, 70, 229, 0.1)';
+                const candlestickColors = {
+                    up: isDarkMode ? 'rgb(52, 211, 153)' : 'rgb(34, 197, 94)',
+                    down: isDarkMode ? 'rgb(248, 113, 113)' : 'rgb(239, 68, 68)',
+                    borderUp: isDarkMode ? 'rgb(52, 211, 153)' : 'rgb(34, 197, 94)',
+                    borderDown: isDarkMode ? 'rgb(248, 113, 113)' : 'rgb(239, 68, 68)'
+                };
+
+                let labels = dataPoints.map(d => d.date);
+                let datasetData = isHourly && chartType === 'candlestick' ? dataPoints.map(d => d.ohlc) : dataPoints.map(d => d.value);
+
+                const chartConfig = {
+                    type: isHourly && chartType === 'candlestick' ? 'candlestick' : 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: chartLabel,
+                            data: datasetData,
+                            ... (chartType === 'line' && {
+                                borderColor: lineColor,
+                                backgroundColor: backgroundColor,
+                                fill: true,
+                                tension: 0.3,
+                                pointRadius: 3,
+                                pointHoverRadius: 5
+                            }),
+                            ... (chartType === 'candlestick' && {
+                                borderColor: candlestickColors.borderUp,
+                                borderWidth: 1,
+                                upColor: candlestickColors.up,
+                                downColor: candlestickColors.down,
+                                fill: false
+                            })
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                labels: {
+                                    color: chartTextColor
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                type: isHourly ? 'timeseries' : 'category',
+                                ticks: {
+                                    color: chartTextColor
+                                },
+                                grid: {
+                                    color: gridColor
+                                },
+                                time: {
+                                    unit: isHourly ? 'minute' : 'day',
+                                    tooltipFormat: isHourly ? 'HH:mm' : 'MMM dd'
+                                }
+                            },
+                            y: {
+                                ticks: {
+                                    color: chartTextColor
+                                },
+                                grid: {
+                                    color: gridColor
+                                }
+                            }
+                        }
+                    }
+                };
+                
+                return new Chart(ctx, chartConfig);
+            };
+
+            const updateLastRefreshed = () => {
+                const now = luxon.DateTime.now().setZone('Asia/Bangkok').toLocaleString(luxon.DateTime.DATETIME_FULL);
+                document.getElementById('last-updated').innerText = `Last Updated: ${now}`;
+            };
+
+            const updateNextRefresh = () => {
+                const minutesLeft = Math.floor(countdown / 60);
+                const secondsLeft = countdown % 60;
+                document.getElementById('next-refresh').innerText = `Next chart refresh in: ${String(minutesLeft).padStart(2, '0')}:${String(secondsLeft).padStart(2, '0')}`;
+            };
+            
+            const updateThemeStatus = () => {
+                const isDarkMode = document.documentElement.classList.contains('dark');
+                document.getElementById('theme-status').innerText = isDarkMode ? 'Dark Theme' : 'Light Theme';
+            };
+
+            // Function to update both charts
+            const updateAllCharts = () => {
+                addHourlyDataPoint();
+                updateChart(rateChart15MinInstance, currentHourlyData, true);
+                updateChart(rateChartInstance, currentDailyData);
+            };
+
+            // Function to change the 15-min chart type
+            const change15MinChartType = (newType) => {
+                if (rateChart15MinInstance) {
+                    rateChart15MinInstance.destroy();
+                }
+                current15MinChartType = newType;
+                rateChart15MinInstance = createChart('rateChart15Min', 'Intraday Rate', currentHourlyData, true, newType);
+                
+                // Update button styles
+                const lineBtn = document.getElementById('line-chart-btn');
+                const candlestickBtn = document.getElementById('candlestick-chart-btn');
+                const isDarkMode = document.documentElement.classList.contains('dark');
+
+                if (newType === 'line') {
+                    lineBtn.classList.add('bg-indigo-600', 'text-white', 'dark:bg-indigo-500');
+                    lineBtn.classList.remove('bg-gray-200', 'text-gray-700', 'dark:bg-gray-700', 'dark:text-gray-300');
+                    candlestickBtn.classList.remove('bg-indigo-600', 'text-white', 'dark:bg-indigo-500');
+                    candlestickBtn.classList.add('bg-gray-200', 'text-gray-700', 'dark:bg-gray-700', 'dark:text-gray-300');
+                } else {
+                    candlestickBtn.classList.add('bg-indigo-600', 'text-white', 'dark:bg-indigo-500');
+                    candlestickBtn.classList.remove('bg-gray-200', 'text-gray-700', 'dark:bg-gray-700', 'dark:text-gray-300');
+                    lineBtn.classList.remove('bg-indigo-600', 'text-white', 'dark:bg-indigo-500');
+                    lineBtn.classList.add('bg-gray-200', 'text-gray-700', 'dark:bg-gray-700', 'dark:text-gray-300');
+                }
+            };
+            
+            // Initial setup
+            rateChartInstance = createChart('rateChart', 'Daily USD/THB Rate', currentDailyData);
+            change15MinChartType('line');
+            updateLastRefreshed();
+            updateThemeStatus();
+            updateNextRefresh();
+
+            // Event Listeners
+            document.getElementById('refresh-button').addEventListener('click', () => {
+                updateAllCharts();
+                updateLastRefreshed();
+                countdown = chartRefreshInterval;
+            });
+
+            document.getElementById('theme-toggle').addEventListener('click', () => {
+                document.documentElement.classList.toggle('dark');
+                updateThemeStatus();
+                updateChart(rateChartInstance, currentDailyData);
+                updateChart(rateChart15MinInstance, currentHourlyData, true);
+            });
+
+            document.getElementById('export-pdf-button').addEventListener('click', () => {
+                const content = document.getElementById('analysis-content');
+                html2canvas(content, {
+                    scale: 2,
+                    useCORS: true
+                }).then(canvas => {
+                    const imgData = canvas.toDataURL('image/png');
+                    const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
+                    const imgWidth = 210;
+                    const pageHeight = 297;
+                    const imgHeight = canvas.height * imgWidth / canvas.width;
+                    let heightLeft = imgHeight;
+                    let position = 0;
+
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+
+                    while (heightLeft >= 0) {
+                        position = heightLeft - imgHeight;
+                        pdf.addPage();
+                        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                        heightLeft -= pageHeight;
+                    }
+
+                    pdf.save('USD-THB_Analysis.pdf');
+                });
+            });
+
+            document.getElementById('line-chart-btn').addEventListener('click', () => change15MinChartType('line'));
+            document.getElementById('candlestick-chart-btn').addEventListener('click', () => change15MinChartType('candlestick'));
+
+            // Real-time chart refresh every 15 minutes
+            setInterval(() => {
+                updateAllCharts();
+                updateLastRefreshed();
+                countdown = chartRefreshInterval;
+            }, chartRefreshInterval * 1000);
+
+            // Countdown timer for chart refresh
+            setInterval(() => {
+                countdown--;
+                updateNextRefresh();
+            }, 1000);
+        };
+    </script>
+</body>
+</html>
